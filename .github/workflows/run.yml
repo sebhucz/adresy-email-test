@@ -1,8 +1,8 @@
 name: Run Contact Finder
 
 on:
-  workflow_dispatch:      # uruchom ręcznie w zakładce Actions
-  push:                   # albo przy każdym pushu do main
+  workflow_dispatch:
+  push:
     branches: [ main ]
 
 jobs:
@@ -17,8 +17,7 @@ jobs:
         run: |
           pwd
           ls -la
-          echo "-----"
-          if [ -f nazwy.txt ]; then echo "nazwy.txt present"; else echo "nazwy.txt MISSING"; fi
+          if [ -f nazwy.txt ]; then echo "✅ nazwy.txt present"; else echo "❌ nazwy.txt MISSING"; fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -35,25 +34,19 @@ jobs:
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           GOOGLE_CX: ${{ secrets.GOOGLE_CX }}
-          HTTP_TIMEOUT: '25'
-          CONCURRENCY: '6'
         run: |
-          python - << 'PY'
-import os, pathlib
-print("ENV GOOGLE_API_KEY set:", bool(os.getenv("GOOGLE_API_KEY")))
-print("ENV GOOGLE_CX set:", bool(os.getenv("GOOGLE_CX")))
-print("nazwy.txt exists:", pathlib.Path("nazwy.txt").exists())
-PY
+          echo "Env vars:"
+          if [ -n "$GOOGLE_API_KEY" ]; then echo "✅ GOOGLE_API_KEY is set"; else echo "❌ GOOGLE_API_KEY missing"; fi
+          if [ -n "$GOOGLE_CX" ]; then echo "✅ GOOGLE_CX is set"; else echo "❌ GOOGLE_CX missing"; fi
+          echo "Running main.py..."
           python main.py
 
-      - name: Show repository tree (after)
+      - name: Show out directory
         if: always()
         run: |
-          echo "==== after run ===="
-          ls -la
           echo "==== out dir ===="
-          if [ -d out ]; then ls -la out || true; else echo "out directory missing"; fi
-          if [ -d out/pages ]; then ls -la out/pages | head -n 50 || true; fi
+          ls -la out || echo "no out dir"
+          ls -la out/pages 2>/dev/null || true
 
       - name: Upload results
         if: always()
