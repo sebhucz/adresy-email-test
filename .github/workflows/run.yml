@@ -1,8 +1,8 @@
 name: Run Contact Finder
 
 on:
-  workflow_dispatch:
-  push:
+  workflow_dispatch:      # uruchom ręcznie w zakładce Actions
+  push:                   # albo przy każdym pushu do main
     branches: [ main ]
 
 jobs:
@@ -27,6 +27,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          python -V
           pip install --upgrade pip
           pip install -r requirements.txt
 
@@ -34,19 +35,16 @@ jobs:
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           GOOGLE_CX: ${{ secrets.GOOGLE_CX }}
-          # opcjonalne: zwiększ timeouty/konkurencję
           HTTP_TIMEOUT: '25'
           CONCURRENCY: '6'
         run: |
-          python --version
           python - << 'PY'
-import os, sys, json, pathlib
+import os, pathlib
 print("ENV GOOGLE_API_KEY set:", bool(os.getenv("GOOGLE_API_KEY")))
 print("ENV GOOGLE_CX set:", bool(os.getenv("GOOGLE_CX")))
-print("Working dir:", os.getcwd())
 print("nazwy.txt exists:", pathlib.Path("nazwy.txt").exists())
 PY
-          python main.py || (echo "main.py exited with non-zero" && exit 1)
+          python main.py
 
       - name: Show repository tree (after)
         if: always()
