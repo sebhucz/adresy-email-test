@@ -13,20 +13,69 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Verify inputs (nazwy.txt + main.py)
+      - name: Show repository tree
         run: |
-          echo "Repo root: $(pwd)"
+          pwd
           ls -la
-          # Sprawdź pliki wejściowe
-          if [ ! -f main.py ]; then
-            echo "::error::Brak pliku main.py w katalogu głównym repo."
+
+      # ---- proste, osobne testy zamiast jednego długiego skryptu ----
+      - name: Verify main.py exists
+        run: test -f main.py || (echo "::error::Brak pliku main.py w repo." && exit 1)
+
+      - name: Verify nazwy.txt exists
+        run: test -f nazwy.txt || (echo "::error::Brak pliku nazwy.txt w repo." && exit 1)
+
+      - name: Verify nazwy.txt not empty
+        run: test -s nazwy.txt || (echo "::error::Plik nazwy.txt jest pusty." && exit 1)
+
+      - name: Preview nazwy.txt (first 50 lines)
+        run: nl -ba nazwy.txt | sed -n '1,50p'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -V
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Check secrets presence
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GOOGLE_CX: ${{ secrets.GOOGLE_CX }}
+        run: |
+          [ -n "$GOOGLE_API_KEY" ] || (echo "::error::Sekret GOOGLE_API_KEY nie ustawiony." && exit 1)
+          [ -n "$GOOGLE_CX" ]      || (echo "::error::Sekret GOOGLE_CX nie ustawiony." && exit 1)
+          echo "✅ Sekrety wykryte."
+
+      - name: Run script
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GOOGLE_CX: ${{ secrets.GOOGLE_CX }}
+          HTTP_TIMEOUT: '25'
+          CONCURRENCY: '6'
+        run: python main.py
+
+      - name: Validate outputs
+        run: |
+          if [ ! -d out ]; then
+            echo "::error::Katalog out/ nie został utworzony przez skrypt."
             exit 1
           fi
-          if [ ! -f nazwy.txt ]; then
-            echo "::error::Brak pliku nazwy.txt w katalogu głównym repo."
-            echo "Utwórz nazwy.txt, np.:"
-            echo "Przykładowa Spółka Akcyjna ; 0000123456" 
-            echo "Inna Spółka z o.o."
-            exit 1
-          fi
-          if [ ! -s nazwy.txt ];
+          ls -la out || true
+          [ -f out/results.json ] || (echo "::error::Brak out/results.json." && exit 1)
+          [ -f out/results.csv ]  || (echo "::error::Brak out/results.csv." && exit 1)
+          echo "✅ Wyniki są gotowe."
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: contact-finder-results
+          path: |
+            out/results.json
+            out/results.csv
+            out/pages
+          if-no-files-found: warn
