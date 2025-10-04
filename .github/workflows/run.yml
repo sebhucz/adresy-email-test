@@ -1,8 +1,8 @@
 name: Run Contact Finder
 
 on:
-  workflow_dispatch:    # pozwala uruchomić ręcznie
-  push:                 # uruchomi się też po każdym pushu do repo
+  workflow_dispatch:
+  push:
     branches: [ main ]
 
 jobs:
@@ -13,21 +13,52 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Show repository tree (before)
+        run: |
+          pwd
+          ls -la
+          echo "-----"
+          if [ -f nazwy.txt ]; then echo "nazwy.txt present"; else echo "nazwy.txt MISSING"; fi
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Run script
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           GOOGLE_CX: ${{ secrets.GOOGLE_CX }}
-        run: python main.py
+          # opcjonalne: zwiększ timeouty/konkurencję
+          HTTP_TIMEOUT: '25'
+          CONCURRENCY: '6'
+        run: |
+          python --version
+          python - << 'PY'
+import os, sys, json, pathlib
+print("ENV GOOGLE_API_KEY set:", bool(os.getenv("GOOGLE_API_KEY")))
+print("ENV GOOGLE_CX set:", bool(os.getenv("GOOGLE_CX")))
+print("Working dir:", os.getcwd())
+print("nazwy.txt exists:", pathlib.Path("nazwy.txt").exists())
+PY
+          python main.py || (echo "main.py exited with non-zero" && exit 1)
+
+      - name: Show repository tree (after)
+        if: always()
+        run: |
+          echo "==== after run ===="
+          ls -la
+          echo "==== out dir ===="
+          if [ -d out ]; then ls -la out || true; else echo "out directory missing"; fi
+          if [ -d out/pages ]; then ls -la out/pages | head -n 50 || true; fi
 
       - name: Upload results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: contact-finder-results
@@ -35,3 +66,4 @@ jobs:
             out/results.json
             out/results.csv
             out/pages
+          if-no-files-found: warn
