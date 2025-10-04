@@ -13,48 +13,20 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Show repository tree (before)
+      - name: Verify inputs (nazwy.txt + main.py)
         run: |
-          pwd
+          echo "Repo root: $(pwd)"
           ls -la
-          if [ -f nazwy.txt ]; then echo "✅ nazwy.txt present"; else echo "❌ nazwy.txt MISSING"; fi
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          python -V
-          pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run script
-        env:
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          GOOGLE_CX: ${{ secrets.GOOGLE_CX }}
-        run: |
-          echo "Env vars:"
-          if [ -n "$GOOGLE_API_KEY" ]; then echo "✅ GOOGLE_API_KEY is set"; else echo "❌ GOOGLE_API_KEY missing"; fi
-          if [ -n "$GOOGLE_CX" ]; then echo "✅ GOOGLE_CX is set"; else echo "❌ GOOGLE_CX missing"; fi
-          echo "Running main.py..."
-          python main.py
-
-      - name: Show out directory
-        if: always()
-        run: |
-          echo "==== out dir ===="
-          ls -la out || echo "no out dir"
-          ls -la out/pages 2>/dev/null || true
-
-      - name: Upload results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: contact-finder-results
-          path: |
-            out/results.json
-            out/results.csv
-            out/pages
-          if-no-files-found: warn
+          # Sprawdź pliki wejściowe
+          if [ ! -f main.py ]; then
+            echo "::error::Brak pliku main.py w katalogu głównym repo."
+            exit 1
+          fi
+          if [ ! -f nazwy.txt ]; then
+            echo "::error::Brak pliku nazwy.txt w katalogu głównym repo."
+            echo "Utwórz nazwy.txt, np.:"
+            echo "Przykładowa Spółka Akcyjna ; 0000123456" 
+            echo "Inna Spółka z o.o."
+            exit 1
+          fi
+          if [ ! -s nazwy.txt ];
