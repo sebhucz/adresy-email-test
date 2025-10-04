@@ -1,0 +1,10 @@
+# środowisko
+.venv/
+__pycache__/
+*.pyc
+
+# lokalne pliki konfig/sekretów (używamy Secrets w Actions)
+.env
+
+# wyniki
+out/
